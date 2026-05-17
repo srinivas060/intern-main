@@ -21,7 +21,7 @@ router.get('/', auth, async (req, res) => {
         (SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id) as task_count,
         (SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND t.status='Done') as done_count,
         (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id=p.id) as member_count
-        FROM projects p LEFT JOIN users u ON u.id=p.owner_id ORDER BY p.created_at DESC`;
+        FROM projects p LEFT JOIN users u ON u.id=p.created_by ORDER BY p.created_at DESC`;
       params = [];
     } else {
       query = `SELECT p.*, u.name as owner_name,
@@ -30,7 +30,7 @@ router.get('/', auth, async (req, res) => {
         (SELECT COUNT(*) FROM project_members pm2 WHERE pm2.project_id=p.id) as member_count
         FROM projects p
         JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=$1
-        LEFT JOIN users u ON u.id=p.owner_id
+        LEFT JOIN users u ON u.id=p.created_by
         ORDER BY p.created_at DESC`;
       params = [req.user.id];
     }
@@ -65,7 +65,7 @@ router.post('/', auth, adminOnly, [
   try {
     await client.query('BEGIN');
     const p = await client.query(
-      'INSERT INTO projects (name, description, owner_id) VALUES ($1,$2,$3) RETURNING *',
+      'INSERT INTO projects (name, description, created_by) VALUES ($1,$2,$3) RETURNING *',
       [name, description || null, req.user.id]
     );
     const pid = p.rows[0].id;
