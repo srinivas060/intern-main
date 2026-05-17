@@ -15,7 +15,7 @@ const taskSelect = `
     p.name as project_name,
     cb.name as created_by_name
   FROM tasks t
-  LEFT JOIN users u ON u.id=t.assignee_id
+  LEFT JOIN users u ON u.id=t.assigned_to
   LEFT JOIN projects p ON p.id=t.project_id
   LEFT JOIN users cb ON cb.id=t.created_by
 `;
@@ -42,7 +42,7 @@ router.get('/', auth, async (req, res) => {
 
 // GET /api/tasks/my  — tasks assigned to me
 router.get('/my', auth, async (req, res) => {
-  const result = await db.query(taskSelect + ' WHERE t.assignee_id=$1 ORDER BY t.due_date ASC NULLS LAST', [req.user.id]);
+  const result = await db.query(taskSelect + ' WHERE t.assigned_to=$1 ORDER BY t.due_date ASC NULLS LAST', [req.user.id]);
   res.json(result.rows);
 });
 
@@ -73,7 +73,7 @@ router.post('/', auth, [
 
   try {
     const result = await db.query(
-      `INSERT INTO tasks (title, description, project_id, status, priority, assignee_id, due_date, created_by)
+      `INSERT INTO tasks (title, description, project_id, status, priority, assigned_to, due_date, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [title, description || null, projectId, status, priority, assigneeId || null, dueDate || null, req.user.id]
     );
@@ -94,7 +94,7 @@ router.patch('/:id', auth, async (req, res) => {
     return res.status(403).json({ error: 'Access denied' });
   }
 
-  const { title, description, status, priority, assigneeId, dueDate } = req.body;
+  const { title, description, status, priority, assigned_to, dueDate } = req.body;
   try {
     const result = await db.query(
       `UPDATE tasks SET
@@ -102,10 +102,10 @@ router.patch('/:id', auth, async (req, res) => {
         description=COALESCE($2,description),
         status=COALESCE($3,status),
         priority=COALESCE($4,priority),
-        assignee_id=COALESCE($5,assignee_id),
+        assigned_to=COALESCE($5,assigned_to),
         due_date=COALESCE($6,due_date)
        WHERE id=$7 RETURNING *`,
-      [title||null, description||null, status||null, priority||null, assigneeId||null, dueDate||null, req.params.id]
+      [title||null, description||null, status||null, priority||null, assigned_to||null, dueDate||null, req.params.id]
     );
     const updated = await db.query(taskSelect + ' WHERE t.id=$1', [req.params.id]);
     res.json(updated.rows[0]);
